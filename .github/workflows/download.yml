@@ -1,0 +1,42 @@
+name: Download Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: YouTube link (Short or long video)
+        required: true
+      mode:
+        description: "video or audio"
+        default: video
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pip install -U yt-dlp
+
+      - name: Download
+        env:
+          URL: ${{ inputs.url }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          mkdir out
+          if [ "$MODE" = "audio" ]; then
+            yt-dlp -x --audio-format mp3 -o "out/%(title).80s.%(ext)s" "$URL"
+          else
+            yt-dlp -f "bv*[height<=1080]+ba/b" --merge-output-format mp4 -o "out/%(title).80s.%(ext)s" "$URL"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video
+          path: out/*
+          retention-days: 1
