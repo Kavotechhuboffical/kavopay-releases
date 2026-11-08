@@ -18,6 +18,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install tools
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -27,13 +31,20 @@ jobs:
         env:
           URL: ${{ inputs.url }}
           MODE: ${{ inputs.mode }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
           mkdir out
-          if [ "$MODE" = "audio" ]; then
-            yt-dlp -x --audio-format mp3 -o "out/%(title).80s.%(ext)s" "$URL"
-          else
-            yt-dlp -f "bv*[height<=1080]+ba/b" --merge-output-format mp4 -o "out/%(title).80s.%(ext)s" "$URL"
+          OPTS=(--js-runtimes node)
+          if [ -n "$YT_COOKIES" ]; then
+            printf '%s\n' "$YT_COOKIES" > cookies.txt
+            OPTS+=(--cookies cookies.txt)
           fi
+          if [ "$MODE" = "audio" ]; then
+            yt-dlp "${OPTS[@]}" -x --audio-format mp3 -o "out/%(title).80s.%(ext)s" "$URL"
+          else
+            yt-dlp "${OPTS[@]}" -f "bv*[height<=1080]+ba/b" --merge-output-format mp4 -o "out/%(title).80s.%(ext)s" "$URL"
+          fi
+          rm -f cookies.txt
 
       - uses: actions/upload-artifact@v4
         with:
